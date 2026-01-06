@@ -1,4 +1,4 @@
-# Kasboek Debutade - Web Applicatie
+# Bankrekening Debutade - Web Applicatie
 # Requirements voor Python packages
 
 # Flask web framework

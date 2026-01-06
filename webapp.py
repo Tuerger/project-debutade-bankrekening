@@ -1,8 +1,8 @@
 """
-Kasboek Debutade - Web Applicatie
-===================================
+Bankrekening Debutade - Web Applicatie
+=======================================
 
-Een moderne web-gebaseerde applicatie voor het beheren van kasboektransacties.
+Een moderne web-gebaseerde applicatie voor het beheren van bankrekeningtransacties.
 Dit is de Flask web app versie van de originele Tkinter applicatie.
 
 Functionaliteiten:
@@ -11,7 +11,7 @@ Functionaliteiten:
 - Automatische opslag in Excel-bestand
 - Logging van gebeurtenissen
 - Overzicht van recente transacties
-- Berekening van totaal kassaldo
+- Berekening van totaal banksaldo
 
 Versie: 2.0 (Web App)
 Datum: 2026-01-03
@@ -54,8 +54,17 @@ REQUIRED_HEADERS = [
     "Tag"
 ]
 
+# Vereiste tabs (sheets) in het Excel bestand
+REQUIRED_SHEETS = [
+    "Bankrekening",
+    "Spaarrekening 1",
+    "Spaarrekening 2"
+]
+
 app = Flask(__name__)
 app.static_folder = 'static'
+# Zorg dat gewijzigde templates direct opnieuw geladen worden (ontwikkelmodus)
+app.config['TEMPLATES_AUTO_RELOAD'] = True
 
 # Laad configuratie
 def load_config(config_path):
@@ -68,7 +77,7 @@ def load_config(config_path):
     
     required_keys = ["excel_file_path", "resources", 
                     "backup_directory", "log_directory", "excel_sheet_name", 
-                    "tags", "log_level"]
+                    "required_sheets", "tags", "log_level"]
     
     for key in required_keys:
         if key not in config:
@@ -108,11 +117,50 @@ def validate_excel_headers(file_path, required_headers=REQUIRED_HEADERS):
         if wb:
             wb.close()
 
+def validate_workbook_structure(file_path):
+    """Valideer dat het Excel bestand exact de vereiste tabs en kolom headers heeft.
+    Vereist: 3 tabs met namen Bankrekening, Spaarrekening 1, Spaarrekening 2.
+    Elke tab moet EXACT de kolom headers in REQUIRED_HEADERS hebben.
+    Retourneert (True, None) bij succes, anders (False, foutmelding).
+    """
+    wb = None
+    try:
+        wb = load_workbook(file_path, read_only=True, data_only=True)
+        found_sheets = list(wb.sheetnames)
+        # Exacte set en aantal controleren
+        if set(found_sheets) != set(REQUIRED_SHEETS) or len(found_sheets) != len(REQUIRED_SHEETS):
+            return False, (
+                f"Excel bestand moet EXACT deze tabs bevatten: {', '.join(REQUIRED_SHEETS)}. "
+                f"Gevonden: {', '.join(found_sheets) if found_sheets else 'geen'}"
+            )
+
+        # Headers per sheet controleren
+        for sheet_name in REQUIRED_SHEETS:
+            sheet = wb[sheet_name]
+            first_row = next(sheet.iter_rows(min_row=1, max_row=1, values_only=True), ())
+            normalized_row = [str(val).strip() if val is not None else '' for val in first_row]
+            if len(normalized_row) < len(REQUIRED_HEADERS):
+                normalized_row += [''] * (len(REQUIRED_HEADERS) - len(normalized_row))
+            normalized_required = [str(val).strip() for val in REQUIRED_HEADERS]
+            if normalized_row[:len(normalized_required)] != normalized_required:
+                return False, (
+                    f"Tab '{sheet_name}' heeft onjuiste kolom headers. Verwacht: "
+                    f"{', '.join(REQUIRED_HEADERS)}"
+                )
+
+        return True, None
+    except Exception as e:
+        logging.error(f"Fout bij valideren workbook structuur: {str(e)}")
+        return False, f"Fout bij valideren Excel bestand: {str(e)}"
+    finally:
+        if wb:
+            wb.close()
+
 # Bepaal het directory waar het script zich bevindt
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Standaard configuratie pad (kan worden aangepast via omgevingsvariabele)
-CONFIG_PATH = os.getenv('KASBOEK_CONFIG', 
+CONFIG_PATH = os.getenv('BANKREKENING_CONFIG', 
     os.path.join(SCRIPT_DIR, 'config.json'))
 
 try:
@@ -126,7 +174,7 @@ except (FileNotFoundError, KeyError) as e:
         "resources": r"C:\Users\ericg\OneDrive\Documents\Code\resources",
         "backup_directory": r"C:\Users\ericg\OneDrive\Documents\Code\backups",
         "log_directory": r"C:\Users\ericg\OneDrive\Documents\Code\logs",
-        "excel_sheet_name": "Transacties",
+        "excel_sheet_name": "Bankrekening",
         "tags": ["Algemeen", "Evenement", "Materiaal", "Training", "Overig"],
         "log_level": "INFO"
     }
@@ -140,6 +188,7 @@ LOG_DIRECTORY = config["log_directory"]
 EXCEL_SHEET_NAME = config["excel_sheet_name"]
 TAGS = config["tags"]
 LOG_LEVEL = config["log_level"]
+REQUIRED_SHEETS = config.get("required_sheets", REQUIRED_SHEETS)
 
 # Valideer alle bestandspaden bij startup
 def validate_config():
@@ -308,6 +357,91 @@ def get_all_transactions():
         logging.error(f"Fout bij ophalen alle transacties: {str(e)}")
         return []
 
+def get_untagged_transactions():
+    """Haal alle transacties op zonder ingevulde Tag (leeg of whitespace) uit alle vereiste tabs."""
+    try:
+        if not os.path.exists(EXCEL_FILE_PATH):
+            return []
+
+        wb = load_workbook(EXCEL_FILE_PATH, read_only=True, data_only=True)
+        transactions = []
+
+        for sheet_name in REQUIRED_SHEETS:
+            if sheet_name not in wb.sheetnames:
+                # Als een vereiste sheet ontbreekt, sla over; validatie elders bewaakt structuur
+                continue
+            sheet = wb[sheet_name]
+            for row_idx, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
+                tag_value = (row[11] if len(row) > 11 else '') or ''
+                if str(tag_value).strip() == '':
+                    transactions.append({
+                        'sheet_name': sheet_name,
+                        'row_index': row_idx,
+                        'datum': row[0].strftime('%Y-%m-%d') if isinstance(row[0], datetime) else (row[0] or ''),
+                        'mededelingen': (row[8] if len(row) > 8 else None) or row[1] or '',
+                        'af_bij': row[5] or '',
+                        'bedrag': f"{row[6]:.2f}" if isinstance(row[6], (int, float)) else '0.00',
+                        'rekening': row[2] or ''
+                    })
+
+        return transactions
+    except Exception as e:
+        logging.error(f"Fout bij ophalen ongetagde transacties: {str(e)}")
+        return []
+
+def get_all_transactions_all_sheets():
+    """Haal alle transacties uit alle vereiste tabs, inclusief bestaande Tag."""
+    try:
+        if not os.path.exists(EXCEL_FILE_PATH):
+            return []
+        wb = load_workbook(EXCEL_FILE_PATH, read_only=True, data_only=True)
+        transactions = []
+
+        for sheet_name in REQUIRED_SHEETS:
+            if sheet_name not in wb.sheetnames:
+                continue
+            sheet = wb[sheet_name]
+            for row_idx, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
+                if row and row[0]:
+                    transactions.append({
+                        'sheet_name': sheet_name,
+                        'row_index': row_idx,
+                        'datum': row[0].strftime('%Y-%m-%d') if isinstance(row[0], datetime) else (row[0] or ''),
+                        'mededelingen': (row[8] if len(row) > 8 else None) or row[1] or '',
+                        'af_bij': row[5] or '',
+                        'bedrag': f"{row[6]:.2f}" if isinstance(row[6], (int, float)) else '0.00',
+                        'rekening': row[2] or '',
+                        'tag': (row[11] if len(row) > 11 else '') or ''
+                    })
+
+        return transactions
+    except Exception as e:
+        logging.error(f"Fout bij ophalen alle transacties (alle tabs): {str(e)}")
+        return []
+
+def get_sheet_stats():
+    """Geef per vereiste tab het aantal rijen en aantal ongetagde rijen terug."""
+    stats = []
+    try:
+        if not os.path.exists(EXCEL_FILE_PATH):
+            return stats
+        wb = load_workbook(EXCEL_FILE_PATH, read_only=True, data_only=True)
+        for sheet_name in REQUIRED_SHEETS:
+            total_rows = 0
+            untagged_rows = 0
+            if sheet_name in wb.sheetnames:
+                sheet = wb[sheet_name]
+                for row in sheet.iter_rows(min_row=2, values_only=True):
+                    if row and any(cell is not None and str(cell).strip() != '' for cell in row):
+                        total_rows += 1
+                        tag_value = (row[11] if len(row) > 11 else '') or ''
+                        if str(tag_value).strip() == '':
+                            untagged_rows += 1
+            stats.append({'sheet_name': sheet_name, 'total': total_rows, 'untagged': untagged_rows})
+        return stats
+    except Exception as e:
+        logging.error(f"Fout bij ophalen sheet statistieken: {str(e)}")
+        return stats
 @app.route('/favicon.ico')
 def favicon():
     """Serve the favicon"""
@@ -317,7 +451,9 @@ def favicon():
 def index():
     """Hoofdpagina met invoerformulier"""
     total_amount = calculate_total_amount()
-    recent_transactions = get_recent_transactions()
+    untagged_transactions = get_untagged_transactions()
+    all_transactions = get_all_transactions_all_sheets()
+    sheet_stats = get_sheet_stats()
     today = datetime.now().strftime('%Y-%m-%d')
     current_date_display = datetime.now().strftime('%d-%m-%Y')
     current_user = getpass.getuser()
@@ -325,10 +461,54 @@ def index():
     return render_template('index.html', 
                          tags=TAGS,
                          total_amount=total_amount,
-                         recent_transactions=recent_transactions,
+                         untagged_transactions=untagged_transactions,
+                         all_transactions=all_transactions,
+                         sheet_stats=sheet_stats,
                          today=today,
                          current_date=current_date_display,
                          current_user=current_user)
+
+@app.route('/update_tag', methods=['POST'])
+def update_tag():
+    """Werk de Tag bij voor een specifieke rij in een opgegeven sheet."""
+    try:
+        if not EXCEL_FILE_PATH or not os.path.exists(EXCEL_FILE_PATH):
+            return jsonify({'success': False, 'message': 'Excel bestand niet beschikbaar'}), 400
+
+        data = request.get_json() or {}
+        sheet_name = str(data.get('sheet_name', '')).strip()
+        row_index = int(str(data.get('row_index', '0')).strip() or '0')
+        new_tag = str(data.get('tag', '')).strip()
+
+        if sheet_name == '' or sheet_name not in REQUIRED_SHEETS:
+            return jsonify({'success': False, 'message': 'Ongeldige sheet-naam'}), 400
+
+        if row_index < 2:
+            return jsonify({'success': False, 'message': 'Ongeldige rij-index'}), 400
+
+        if not new_tag:
+            return jsonify({'success': False, 'message': 'Tag is verplicht'}), 400
+
+        # Optioneel: valideer dat de tag uit de lijst komt
+        if TAGS and new_tag not in TAGS:
+            return jsonify({'success': False, 'message': 'Tag is niet toegestaan'}), 400
+
+        wb = load_workbook(EXCEL_FILE_PATH)
+        if sheet_name not in wb.sheetnames:
+            return jsonify({'success': False, 'message': 'Sheet niet gevonden in Excel bestand'}), 400
+        sheet = wb[sheet_name]
+
+        # Schrijf tag in kolom 12 (Tag)
+        sheet.cell(row=row_index, column=12, value=new_tag)
+        wb.save(EXCEL_FILE_PATH)
+
+        user = getpass.getuser()
+        logging.info(f"TAG BIJGEWERKT | Gebruiker: {user} | Sheet: {sheet_name} | Rij: {row_index} | Tag: {new_tag}")
+
+        return jsonify({'success': True, 'message': 'Tag bijgewerkt'})
+    except Exception as e:
+        logging.error(f"Fout bij bijwerken tag: {str(e)}")
+        return jsonify({'success': False, 'message': f'Fout: {str(e)}'}), 500
 
 @app.route('/add_transaction', methods=['POST'])
 def add_transaction():
@@ -390,15 +570,19 @@ def add_transaction():
                 sheet = wb[EXCEL_SHEET_NAME]
             else:
                 sheet = wb.create_sheet(EXCEL_SHEET_NAME)
+                # Voeg headers toe aan de nieuwe sheet
+                sheet.append(REQUIRED_HEADERS)
         else:
             wb = Workbook()
-            sheet = wb.active
-            sheet.title = EXCEL_SHEET_NAME
-            # Voeg headers toe
-            headers = ['Datum', 'Naam/Omschrijving', 'Rekening', 'Tegen Rekening', 
-                      'Code', 'Af Bij', 'Bedrag', 'Mutatiesoort', 'Mededelingen', 
-                      'Saldo na mutatie', '', 'Tag']
-            sheet.append(headers)
+            # Maak alle vereiste sheets aan met headers
+            main_sheet = wb.active
+            main_sheet.title = "Bankrekening"
+            main_sheet.append(REQUIRED_HEADERS)
+            for name in ["Spaarrekening 1", "Spaarrekening 2"]:
+                s = wb.create_sheet(name)
+                s.append(REQUIRED_HEADERS)
+            # Selecteer de juiste sheet om te schrijven
+            sheet = wb[EXCEL_SHEET_NAME] if EXCEL_SHEET_NAME in wb.sheetnames else wb["Bankrekening"]
         
         # Voeg lege rij in op positie 2
         sheet.insert_rows(2)
@@ -521,7 +705,8 @@ def settings():
         'log_dir': LOG_DIRECTORY,
         'sheet_name': EXCEL_SHEET_NAME,
         'log_level': LOG_LEVEL,
-        'tags': TAGS
+        'tags': TAGS,
+        'sheets': REQUIRED_SHEETS
     }
     return render_template('settings.html', settings=settings_info, current_date=current_date_display, current_user=current_user)
 
@@ -580,8 +765,9 @@ def set_excel_file_path():
         if not os.path.exists(new_path):
             return jsonify({'success': False, 'message': 'Bestand niet gevonden op opgegeven pad'}), 400
 
-        if not validate_excel_headers(new_path):
-            return jsonify({'success': False, 'message': 'Bestand voldoet niet aan het vereiste kolom formaat'}), 400
+        is_valid, err = validate_workbook_structure(new_path)
+        if not is_valid:
+            return jsonify({'success': False, 'message': err}), 400
 
         global EXCEL_FILE_NAME, EXCEL_FILE_PATH, EXCEL_FILE_DIRECTORY, config
         old_path = EXCEL_FILE_PATH
@@ -626,12 +812,16 @@ def upload_excel_file():
         save_path = os.path.join(EXCEL_FILE_DIRECTORY, filename)
         file.save(save_path)
 
-        # Valideer kolom headers
-        if not validate_excel_headers(save_path):
-            os.remove(save_path)
+        # Valideer workbook structuur (tabs + headers)
+        is_valid, err = validate_workbook_structure(save_path)
+        if not is_valid:
+            try:
+                os.remove(save_path)
+            except Exception:
+                pass
             return jsonify({
                 'success': False,
-                'message': 'Het gekozen Excel bestand voldoet niet aan het vereiste formaat (ontbrekende of onjuiste kolom headers).'
+                'message': err or 'Het gekozen Excel bestand voldoet niet aan het vereiste formaat.'
             }), 400
 
         global EXCEL_FILE_NAME, EXCEL_FILE_PATH, config
@@ -767,6 +957,10 @@ def set_excel_sheet_name():
         if not new_sheet_name:
             return jsonify({'success': False, 'message': 'Sheet naam is verplicht'}), 400
 
+        # Alleen de vereiste sheets zijn toegestaan
+        if new_sheet_name not in REQUIRED_SHEETS:
+            return jsonify({'success': False, 'message': f'Sheet naam moet een van deze zijn: {", ".join(REQUIRED_SHEETS)}'}), 400
+
         # Controleer of Excel bestand bestaat en de sheet naam daarin
         if not os.path.exists(EXCEL_FILE_PATH):
             return jsonify({'success': False, 'message': 'Excel bestand niet gevonden'}), 400
@@ -828,7 +1022,7 @@ def set_excel_sheet_name():
 
 if __name__ == '__main__':
     print("=" * 60)
-    print(">> Kasboek Debutade Web Applicatie - Startup")
+    print(">> Bankrekening Debutade Web Applicatie - Startup")
     print("=" * 60)
     
     # Zorg dat log directory bestaat voordat we logging configureren
@@ -842,7 +1036,7 @@ if __name__ == '__main__':
             exit(1)
     
     # Configureer logging EERST zodat alle logs worden geschreven
-    log_file_path = os.path.join(LOG_DIRECTORY, "kasboek_webapp_log.txt")
+    log_file_path = os.path.join(LOG_DIRECTORY, "bankrekening_webapp_log.txt")
     logging.basicConfig(
         filename=log_file_path,
         level=getattr(logging, LOG_LEVEL.upper(), logging.INFO),

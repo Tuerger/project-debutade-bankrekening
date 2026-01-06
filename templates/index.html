@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kasboek Debutade</title>
+    <title>Bankrekening Debutade</title>
     <link rel="icon" href="{{ url_for('static', filename='icon.ico') }}" type="image/x-icon">
     <style>
         * {
@@ -169,10 +169,10 @@
         input[type="number"],
         select {
             width: 100%;
-            padding: 10px;
+            padding: 12px;
             border: 1px solid #bdc3c7;
             border-radius: 4px;
-            font-size: 14px;
+            font-size: 15px;
         }
         
         input[type="date"]:focus,
@@ -197,11 +197,11 @@
         button {
             background-color: #27ae60;
             color: white;
-            padding: 12px 30px;
+            padding: 8px 16px;
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 13px;
             font-weight: bold;
             transition: background-color 0.3s;
         }
@@ -223,7 +223,7 @@
         .transactions-section h2 {
             color: #2c3e50;
             margin-bottom: 20px;
-            font-size: 18px;
+            font-size: 14px;
         }
         
         table {
@@ -233,15 +233,23 @@
         }
         
         th, td {
-            padding: 12px;
+            padding: 8px;
             text-align: left;
             border-bottom: 1px solid #ecf0f1;
+            font-size: 13px;
         }
         
         th {
             background-color: #33ABD5;
             color: white;
             font-weight: bold;
+        }
+
+        /* Vergroot de 'Tag' kolom (kolom 7) in beide tabellen */
+        table thead th:nth-child(7),
+        table tbody td:nth-child(7) {
+            min-width: 220px;
+            width: 220px;
         }
         
         tr:hover {
@@ -513,394 +521,312 @@
                 <button id="quitBtn" class="btn-quit">🚪 Afsluiten</button>
             </div>
             <div class="user-info">Vandaag: {{ current_date }} | Gebruiker: {{ current_user }}</div>
-            <h1>Kasboek Debutade</h1>
+            <h1>Bankrekening Debutade</h1>
             <p>Financiële transactie beheerder</p>
         </div>
         
-        <div class="total-amount">
-            Totaal Kassaldo: €{{ "%.2f"|format(total_amount) }}
-        </div>
         
         <div class="form-section">
-            <h2>Nieuwe Transactie Toevoegen</h2>
-            <form id="transactionForm" method="POST" action="/add_transaction">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="datum">Datum *</label>
-                        <input type="date" id="datum" name="datum" value="{{ today }}" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="bedrag">Bedrag (€) *</label>
-                        <input type="number" id="bedrag" name="bedrag" step="0.01" placeholder="0.00" required>
-                    </div>
-                    <div class="form-group">
-                        <label class="field-label">Af of Bij *</label>
-                        <div class="radio-group">
-                            <label for="af_bij_bij">
-                                <input type="radio" id="af_bij_bij" name="af_bij" value="Bij" checked>
-                                Bij
-                            </label>
-                            <label for="af_bij_af">
-                                <input type="radio" id="af_bij_af" name="af_bij" value="Af">
-                                Af
-                            </label>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="form-row full">
-                    <div class="form-group">
-                        <label for="mededelingen">Mededeling *</label>
-                        <input type="text" id="mededelingen" name="mededelingen" placeholder="Mededeling van de transactie" required>
-                    </div>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="rekening">Rekening</label>
-                        <input type="text" id="rekening" name="rekening" placeholder="Rekeningnummer (optioneel)">
-                    </div>
-                    <div class="form-group">
-                        <label for="tag">Categorie *</label>
-                        <div class="autocomplete-container">
-                            <input type="text" id="tag" name="tag" class="autocomplete-input" 
-                                   placeholder="Typ een categorie..." required autocomplete="off">
-                            <div id="tagList" class="autocomplete-list">
-                            </div>
-                            <input type="hidden" id="tag_hidden" name="tag_hidden" value="">
-                        </div>
-                    </div>
-                </div>
-                
-                <button type="submit">Transactie Toevoegen</button>
-            </form>
-        </div>
-        
-        <div class="history-section">
-            <h2>📊 Transacties in deze sessie</h2>
-            <div id="historyContainer">
-                <div class="no-data">Nog geen transacties toegevoegd in deze sessie</div>
-            </div>
-        </div>
-
-        {% if recent_transactions %}
-        <div class="transactions-section">
-            <h2>Recente Transacties</h2>
+            <h2>Diagnose: Sheet statistieken</h2>
+            {% if sheet_stats %}
             <table>
                 <thead>
                     <tr>
-                        <th>Datum</th>
-                        <th>Mededeling</th>
-                        <th>Categorie</th>
-                        <th>Bedrag</th>
+                        <th>Tabblad</th>
+                        <th>Totaal rijen</th>
+                        <th>Untagged rijen</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for transaction in recent_transactions %}
+                    {% for s in sheet_stats %}
                     <tr>
-                        <td>{{ transaction.datum }}</td>
-                        <td>{{ transaction.mededelingen }}</td>
-                        <td>{{ transaction.tag }}</td>
+                        <td>{{ s.sheet_name }}</td>
+                        <td>{{ s.total }}</td>
+                        <td>{{ s.untagged }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="message error">Geen statistieken beschikbaar. Controleer het Excel pad in Instellingen.</div>
+            {% endif %}
+        </div>
+
+        <div class="transactions-section">
+            <h2>Transacties zonder Tag (alle tabbladen)</h2>
+            {% if untagged_transactions %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tabblad</th>
+                        <th>Datum</th>
+                        <th>Mededeling</th>
+                        <th>Rekening</th>
+                        <th>Af/Bij</th>
+                        <th>Bedrag</th>
+                        <th>Tag</th>
+                        <th>Actie</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in untagged_transactions %}
+                    <tr id="row-{{ t.sheet_name }}-{{ t.row_index }}">
+                        <td>{{ t.sheet_name }}</td>
+                        <td>{{ t.datum }}</td>
+                        <td>{{ t.mededelingen }}</td>
+                        <td>{{ t.rekening }}</td>
+                        <td>{{ t.af_bij }}</td>
+                        <td>{{ t.bedrag }}</td>
                         <td>
-                            {% set bedrag_class = 'amount-positive' if transaction.af_bij == 'Bij' else 'amount-negative' %}
-                            {% set bedrag_prefix = '+' if transaction.af_bij == 'Bij' else '-' %}
-                            <span class="{{ bedrag_class }}">{{ bedrag_prefix }}€ {{ transaction.bedrag }}</span>
+                            <div class="autocomplete-container">
+                                <input type="text" class="autocomplete-input" id="tagInput-{{ t.sheet_name }}-{{ t.row_index }}" placeholder="Zoek tag..." data-row="{{ t.sheet_name }}-{{ t.row_index }}">
+                                <div class="autocomplete-list" id="tagList-{{ t.sheet_name }}-{{ t.row_index }}">
+                                    {% for tag in tags %}
+                                    <div class="autocomplete-item" data-tag="{{ tag }}" data-sheet="{{ t.sheet_name }}" data-row="{{ t.row_index }}" onclick="selectTagFromItem(this)">{{ tag }}</div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <button class="btn-primary" data-sheet="{{ t.sheet_name }}" data-row="{{ t.row_index }}" onclick="updateTagFromButton(this)">Opslaan</button>
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
+            {% else %}
+            <div class="message success">Alle transacties hebben een Tag (gebaseerd op huidige data). 🎉</div>
+            {% endif %}
         </div>
-        {% endif %}
+
+        <div class="transactions-section">
+            <h2>Alle transacties (alle tabbladen)</h2>
+            {% if all_transactions %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tabblad</th>
+                        <th>Datum</th>
+                        <th>Mededeling</th>
+                        <th>Rekening</th>
+                        <th>Af/Bij</th>
+                        <th>Bedrag</th>
+                        <th>Tag</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in all_transactions %}
+                    <tr>
+                        <td>{{ t.sheet_name }}</td>
+                        <td>{{ t.datum }}</td>
+                        <td>{{ t.mededelingen }}</td>
+                        <td>{{ t.rekening }}</td>
+                        <td>{{ t.af_bij }}</td>
+                        <td>{{ t.bedrag }}</td>
+                        <td>{{ t.tag }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="message error">Geen transacties gevonden in de Excel.</div>
+            {% endif %}
+        </div>
         
         <div class="page-footer">
-            Kasboek Debutade v2.0 - Web Applicatie
+            Bankrekening Debutade v2.0 - Web Applicatie
         </div>
     </div>
     
     <script>
-        let sessionTransactions = [];
-        const availableTags = {{ (tags|default([]))|tojson|safe }};
-        let selectedTagIndex = -1;
+        // eslint-disable-next-line no-undef
+        // Tag list (passed from Flask template)
+        const tags = {{ tags|tojson }};
         
-        // Init bij pagina laden
-        document.addEventListener('DOMContentLoaded', function() {
-            renderSessionTransactions();
-            setupAutocomplete();
-        });
-        
-        function setupAutocomplete() {
-            const tagInput = document.getElementById('tag');
-            const tagList = document.getElementById('tagList');
+        // Tag autocomplete functionality
+        function initializeTagAutocomplete() {
+            const inputs = document.querySelectorAll('.autocomplete-input');
             
-            // Toon volledige lijst bij focus
-            tagInput.addEventListener('focus', function() {
-                selectedTagIndex = -1;
-                tagList.innerHTML = availableTags.map((tag, index) => 
-                    `<div class="autocomplete-item" data-value="${tag}" data-index="${index}">${tag}</div>`
-                ).join('');
-                tagList.classList.add('active');
-                
-                // Voeg click handlers toe
-                document.querySelectorAll('.autocomplete-item').forEach(item => {
-                    item.addEventListener('click', function() {
-                        selectTag(this.dataset.value);
-                    });
+            inputs.forEach(input => {
+                let selectedIndex = -1;
+
+                input.addEventListener('focus', function() {
+                    const listId = this.id.replace('tagInput-', 'tagList-');
+                    const list = document.getElementById(listId);
+                    if (list) list.classList.add('active');
+                    selectedIndex = -1;
                 });
-            });
-            
-            tagInput.addEventListener('input', function() {
-                const value = this.value.toLowerCase().trim();
-                selectedTagIndex = -1;
                 
-                if (value.length === 0) {
-                    // Bij lege input, toon alle categorieën
-                    tagList.innerHTML = availableTags.map((tag, index) => 
-                        `<div class="autocomplete-item" data-value="${tag}" data-index="${index}">${tag}</div>`
-                    ).join('');
-                    tagList.classList.add('active');
-                    document.querySelectorAll('.autocomplete-item').forEach(item => {
-                        item.addEventListener('click', function() {
-                            selectTag(this.dataset.value);
-                        });
+                input.addEventListener('input', function() {
+                    const query = this.value.toLowerCase();
+                    const listId = this.id.replace('tagInput-', 'tagList-');
+                    const list = document.getElementById(listId);
+                    if (!list) return;
+                    
+                    const items = list.querySelectorAll('.autocomplete-item');
+                    let hasMatch = false;
+                    
+                    items.forEach(item => {
+                        if (item.textContent.toLowerCase().includes(query)) {
+                            item.style.display = 'block';
+                            hasMatch = true;
+                        } else {
+                            item.style.display = 'none';
+                        }
                     });
-                    return;
-                }
-                
-                // Filter categorieën
-                const filtered = availableTags.filter(tag => 
-                    tag.toLowerCase().includes(value)
-                );
-                
-                if (filtered.length === 0) {
-                    tagList.innerHTML = '<div class="no-match">Geen match gevonden</div>';
-                    tagList.classList.add('active');
-                    return;
-                }
-                
-                // Toon gefilterde resultaten
-                tagList.innerHTML = filtered.map((tag, index) => 
-                    `<div class="autocomplete-item" data-value="${tag}" data-index="${index}">${tag}</div>`
-                ).join('');
-                
-                tagList.classList.add('active');
-                
-                // Voeg click handlers toe
-                document.querySelectorAll('.autocomplete-item').forEach(item => {
-                    item.addEventListener('click', function() {
-                        selectTag(this.dataset.value);
-                    });
-                });
-            });
-            
-            tagInput.addEventListener('keydown', function(e) {
-                const items = document.querySelectorAll('.autocomplete-item');
-                
-                if (e.key === 'ArrowDown') {
-                    e.preventDefault();
-                    selectedTagIndex = Math.min(selectedTagIndex + 1, items.length - 1);
-                    updateSelection(items);
-                } else if (e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    selectedTagIndex = Math.max(selectedTagIndex - 1, -1);
-                    updateSelection(items);
-                } else if (e.key === 'Enter') {
-                    e.preventDefault();
-                    if (selectedTagIndex >= 0 && items[selectedTagIndex]) {
-                        selectTag(items[selectedTagIndex].dataset.value);
+                    
+                    if (query === '') {
+                        list.classList.add('active');
+                    } else if (hasMatch) {
+                        list.classList.add('active');
+                    } else {
+                        list.classList.remove('active');
                     }
-                } else if (e.key === 'Escape') {
-                    tagList.classList.remove('active');
-                }
-            });
-            
-            // Sluit dropdown bij klik buiten
-            document.addEventListener('click', function(e) {
-                if (e.target !== tagInput) {
-                    tagList.classList.remove('active');
-                }
+                    
+                    selectedIndex = -1;
+                });
+
+                input.addEventListener('keydown', function(e) {
+                    const listId = this.id.replace('tagInput-', 'tagList-');
+                    const list = document.getElementById(listId);
+                    if (!list || !list.classList.contains('active')) return;
+                    
+                    const items = Array.from(list.querySelectorAll('.autocomplete-item')).filter(item => item.style.display !== 'none');
+                    
+                    if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+                        updateSelection(items, selectedIndex);
+                    } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        selectedIndex = Math.max(selectedIndex - 1, -1);
+                        updateSelection(items, selectedIndex);
+                    } else if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (selectedIndex >= 0 && selectedIndex < items.length) {
+                            const tag = items[selectedIndex].textContent;
+                            this.value = tag;
+                            list.classList.remove('active');
+                            selectedIndex = -1;
+                        }
+                    } else if (e.key === 'Escape') {
+                        list.classList.remove('active');
+                        selectedIndex = -1;
+                    }
+                });
+                
+                input.addEventListener('blur', function() {
+                    setTimeout(() => {
+                        const listId = this.id.replace('tagInput-', 'tagList-');
+                        const list = document.getElementById(listId);
+                        if (list) list.classList.remove('active');
+                        selectedIndex = -1;
+                    }, 200);
+                });
             });
         }
-        
-        function updateSelection(items) {
-            items.forEach((item, index) => {
-                if (index === selectedTagIndex) {
+
+        function updateSelection(items, index) {
+            items.forEach((item, i) => {
+                if (i === index) {
                     item.classList.add('selected');
-                    item.scrollIntoView({ block: 'nearest' });
                 } else {
                     item.classList.remove('selected');
                 }
             });
         }
-        
-        function selectTag(tag) {
-            document.getElementById('tag').value = tag;
-            document.getElementById('tag_hidden').value = tag;
-            document.getElementById('tagList').classList.remove('active');
+
+        function selectTagFromItem(element) {
+            const tag = element.getAttribute('data-tag');
+            const sheet = element.getAttribute('data-sheet');
+            const row = element.getAttribute('data-row');
+            selectTag(sheet, row, tag);
         }
-        
-        function renderSessionTransactions() {
-            if (!sessionTransactions.length) {
-                document.getElementById('historyContainer').innerHTML = '<div class="no-data">Nog geen transacties toegevoegd in deze sessie</div>';
+
+        function selectTag(sheetName, rowIndex, tag) {
+            const input = document.getElementById(`tagInput-${sheetName}-${rowIndex}`);
+            if (input) {
+                input.value = tag;
+            }
+        }
+
+        function updateTagFromButton(button) {
+            const sheet = button.getAttribute('data-sheet');
+            const row = button.getAttribute('data-row');
+            updateTag(sheet, row);
+        }
+
+        function updateTag(sheetName, rowIndex) {
+            const input = document.getElementById(`tagInput-${sheetName}-${rowIndex}`);
+            const tag = input ? input.value.trim() : '';
+            if (!tag) {
+                alert('Kies een Tag');
                 return;
             }
-
-            let html = '<table class="history-table"><thead><tr>' +
-                       '<th>Datum</th>' +
-                       '<th>Mededeling</th>' +
-                       '<th>Categorie</th>' +
-                       '<th>Bedrag</th>' +
-                       '<th>Nieuw saldo (€)</th>' +
-                       '</tr></thead><tbody>';
-
-            sessionTransactions.forEach(t => {
-                const afBijClass = t.afBij === 'Bij' ? 'amount-positive' : 'amount-negative';
-                const bedragPrefix = t.afBij === 'Bij' ? '+' : '-';
-                html += `<tr>
-                    <td>${t.datum}</td>
-                    <td>${t.mededelingen}</td>
-                    <td>${t.tag || '-'}</td>
-                    <td><span class="${afBijClass}">${bedragPrefix}${t.bedrag}</span></td>
-                    <td>${t.nieuwSaldo}</td>
-                </tr>`;
-            });
-
-            html += '</tbody></table>';
-            document.getElementById('historyContainer').innerHTML = html;
-        }
-        
-        document.getElementById('transactionForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            // Update hidden tag field
-            document.getElementById('tag_hidden').value = document.getElementById('tag').value;
-            
-            const formData = new FormData(this);
-            
-            fetch('/add_transaction', {
+            fetch('/update_tag', {
                 method: 'POST',
-                body: formData
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sheet_name: sheetName, row_index: rowIndex, tag })
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert('Transactie succesvol toegevoegd!');
-                    const datum = formData.get('datum');
-                    const mededelingen = formData.get('mededelingen');
-                    const bedragRaw = parseFloat((formData.get('bedrag') || '0').replace(',', '.')) || 0;
-                    const afBij = formData.get('af_bij') || 'Bij';
-                    const tag = formData.get('tag') || '-';
-                    const bedragDisplay = `€ ${Math.abs(bedragRaw).toFixed(2)}`;
-
-                    const newTotalNumber = Number(data.new_total);
-                    let nieuwSaldo = '-';
-                    if (Number.isFinite(newTotalNumber)) {
-                        nieuwSaldo = `€ ${newTotalNumber.toFixed(2)}`;
-                    } else {
-                        // Fallback: bereken lokaal op basis van laatst bekende saldo in sessie
-                        const lastSaldo = sessionTransactions.length
-                            ? parseFloat(String(sessionTransactions[0].nieuwSaldo).replace(/[^0-9.-]/g, ''))
-                            : null;
-                        if (Number.isFinite(lastSaldo)) {
-                            const signedAmount = afBij === 'Af' ? -Math.abs(bedragRaw) : Math.abs(bedragRaw);
-                            const calcSaldo = lastSaldo + signedAmount;
-                            nieuwSaldo = `€ ${calcSaldo.toFixed(2)}`;
-                        }
-                    }
-
-                    sessionTransactions.unshift({
-                        datum,
-                        mededelingen,
-                        afBij,
-                        tag,
-                        bedrag: bedragDisplay,
-                        nieuwSaldo
-                    });
-
-                    renderSessionTransactions();
-
-                    if (typeof data.new_total === 'number') {
-                        const totalEl = document.querySelector('.total-amount');
-                        if (totalEl) {
-                            totalEl.textContent = `Totaal Kassaldo: €${data.new_total.toFixed(2)}`;
-                        }
-                    }
-
-                    this.reset();
-                    document.getElementById('datum').value = new Date().toISOString().split('T')[0];
-                    const defaultBij = document.querySelector('input[name="af_bij"][value="Bij"]');
-                    if (defaultBij) {
-                        defaultBij.checked = true;
-                    }
+            .then(res => res.json().then(body => ({ status: res.status, body })))
+            .then(({ status, body }) => {
+                if (status === 200 && body.success) {
+                    const row = document.getElementById(`row-${sheetName}-${rowIndex}`);
+                    if (row) row.remove();
                 } else {
-                    alert('Fout: ' + data.message);
+                    alert(body.message || 'Bijwerken mislukt');
                 }
             })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Er is een fout opgetreden');
+            .catch(err => {
+                console.error(err);
+                alert('Fout bij bijwerken');
             });
-        });
+        }
+
+        // Initialize autocomplete on page load
+        document.addEventListener('DOMContentLoaded', initializeTagAutocomplete);
 
         // Quit button handler
-        let sessionStartTime = new Date();
-        
-        document.getElementById('quitBtn').addEventListener('click', function(e) {
-            e.preventDefault();
-            
-            // Bereken sessieduur
-            const sessionEndTime = new Date();
-            const durationMs = sessionEndTime - sessionStartTime;
-            const durationMinutes = Math.floor(durationMs / 60000);
-            const durationSeconds = Math.floor((durationMs % 60000) / 1000);
-            const durationStr = durationMinutes > 0 
-                ? `${durationMinutes}m ${durationSeconds}s`
-                : `${durationSeconds}s`;
-            
-            // Bevestiging vragen
-            const confirmed = confirm(`Sessie duur: ${durationStr}\n\nWeet je zeker dat je wil afsluiten?`);
-            
-            if (confirmed) {
-                // Stuur quit request naar server
+        const sessionStartTime = new Date();
+        const quitBtn = document.getElementById('quitBtn');
+        if (quitBtn) {
+            quitBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const sessionEndTime = new Date();
+                const durationMs = sessionEndTime - sessionStartTime;
+                const durationMinutes = Math.floor(durationMs / 60000);
+                const durationSeconds = Math.floor((durationMs % 60000) / 1000);
+                const durationStr = durationMinutes > 0 ? `${durationMinutes}m ${durationSeconds}s` : `${durationSeconds}s`;
+
+                const confirmed = confirm(`Sessie duur: ${durationStr}\n\nWeet je zeker dat je wil afsluiten?`);
+                if (!confirmed) return;
+
                 fetch('/quit', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        duration: durationStr
-                    })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ duration: durationStr })
                 })
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
                         alert('Applicatie sluit af. Tot ziens!');
-                        // Wacht een moment voor de server shutdown
                         setTimeout(() => {
-                            // Sluit het browservenster
                             window.close();
-                            
-                            // Fallback: als window.close() niet werkt, navigeer weg
-                            setTimeout(() => {
-                                window.location.href = 'about:blank';
-                            }, 500);
+                            setTimeout(() => { window.location.href = 'about:blank'; }, 500);
                         }, 1500);
                     } else {
-                        alert('Fout bij afsluiten: ' + data.message);
+                        alert('Fout bij afsluiten: ' + (data.message || 'Onbekende fout'));
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    // Toch proberen af te sluiten ondanks error
                     setTimeout(() => {
                         window.close();
-                        setTimeout(() => {
-                            window.location.href = 'about:blank';
-                        }, 500);
+                        setTimeout(() => { window.location.href = 'about:blank'; }, 500);
                     }, 1000);
                 });
-            }
-        });
+            });
+        }
     </script>
 </body>
 </html>

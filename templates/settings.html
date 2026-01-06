@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Instellingen - Kasboek Debutade</title>
+    <title>Instellingen - Bankrekening Debutade</title>
     <style>
         * {
             margin: 0;
@@ -247,7 +247,7 @@
                 <a href="/">← Terug naar Startpagina</a>
             </div>
             <div class="user-info">Vandaag: {{ current_date }} | Gebruiker: {{ current_user }}</div>
-            <h1>Kasboek Debutade</h1>
+            <h1>Bankrekening Debutade</h1>
             <p>Financiële transactie beheerder</p>
         </div>
         <div class="page-title">
@@ -276,18 +276,7 @@
                     </div>
                 </form>
                 <div id="excelUploadFeedback" class="info-text" style="margin-top:8px;"></div>
-            <div class="setting-item">
-                <span class="setting-label">Excel Sheet Naam:</span>
-                <div class="setting-value" id="sheetNameDisplay">{{ settings.sheet_name }}</div>
-                <form id="sheetNameForm" style="margin-top:10px;">
-                    <input type="text" id="sheetNameInput" name="sheet_name" placeholder="Bijv. Transacties" style="width:100%; padding:10px; border:1px solid #bdc3c7; border-radius:4px;" value="{{ settings.sheet_name }}">
-                    <p class="info-text">Voer de sheet naam in die bestaat in het Excel bestand.</p>
-                    <div class="button-group" style="justify-content:flex-start; margin-top:10px; gap:10px;">
-                        <button type="submit" class="btn-primary">Opslaan</button>
-                    </div>
-                </form>
-                <div id="sheetNameFeedback" class="info-text" style="margin-top:8px;"></div>
-            </div>
+            <!-- Sheet naam wijziging verwijderd: tabs zijn vastgezet -->
             </div>
         </div>
         
@@ -344,9 +333,19 @@
                 {% endfor %}
             </div>
         </div>
+
+        <div class="settings-section">
+            <h2>Excel Sheet Names (vast)</h2>
+            <div class="tags-list">
+                {% for s in settings.sheets %}
+                <span class="tag">{{ s }}</span>
+                {% endfor %}
+            </div>
+            <p class="info-text">Deze sheet-namen zijn vastgelegd in config.json en kunnen niet worden gewijzigd.</p>
+        </div>
         
         <div class="page-footer">
-            Kasboek Debutade v2.0 - Web Applicatie
+            Bankrekening Debutade v2.0 - Web Applicatie
         </div>
     </div>
     <script>
@@ -470,36 +469,7 @@
             });
         });
 
-        document.getElementById('sheetNameForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const feedback = document.getElementById('sheetNameFeedback');
-            feedback.textContent = 'Valideren...';
-
-            const sheetName = document.getElementById('sheetNameInput').value.trim();
-            if (!sheetName) {
-                feedback.textContent = 'Sheet naam is verplicht';
-                return;
-            }
-
-            fetch('/settings/excel-sheet-name', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sheet_name: sheetName })
-            })
-            .then(res => res.json().then(body => ({ status: res.status, body })))
-            .then(({ status, body }) => {
-                if (status === 200 && body.success) {
-                    feedback.textContent = `Opgeslagen: ${body.sheet_name}`;
-                    document.getElementById('sheetNameDisplay').textContent = body.sheet_name;
-                } else {
-                    feedback.textContent = body.message || 'Opslaan mislukt';
-                }
-            })
-            .catch(err => {
-                console.error(err);
-                feedback.textContent = 'Fout bij opslaan';
-            });
-        });
+        // Sheet naam wijziging verwijderd
     </script>
 </body>
 </html>

@@ -1,5 +1,5 @@
 """
-Kasboek Debutade - Launcher
+Bankrekening Debutade - Launcher
 Start de Flask server en open de webapp in de browser
 """
 import subprocess
@@ -34,7 +34,7 @@ def check_server_ready(url, max_attempts=30):
 
 def main():
     print("=" * 60)
-    print(">> Kasboek Debutade - Opstarten")
+    print(">> Bankrekening Debutade - Opstarten")
     print("=" * 60)
     
     # Bepaal het werkpad (waar dit script staat)
@@ -80,7 +80,7 @@ def main():
             webbrowser.open(url)
             
             print("\n" + "=" * 60)
-            print(">> Kasboek Debutade is actief!")
+            print(">> Bankrekening Debutade is actief!")
             print("=" * 60)
             print(">> Gebruik de 'Afsluiten' knop in de webapp om te stoppen")
             print("   Of druk Ctrl+C in dit venster")
