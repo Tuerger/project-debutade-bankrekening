@@ -1,6 +1,6 @@
-# Kasboek Debutade - Web Applicatie
+# Bankrekening Debutade - Web Applicatie
 
-Een moderne web-gebaseerde applicatie voor het beheren van kasboektransacties van Debutade.
+Een moderne web-gebaseerde applicatie voor het beheren van bankrekeningtransacties van Debutade.
 
 ## 📋 Overzicht
 
@@ -8,11 +8,6 @@ Deze web applicatie is een modernisering van de originele Tkinter desktop applic
 
 ## ✨ Functionaliteiten
 
-- ✅ **Transacties toevoegen**: Voeg nieuwe kas transacties toe via een intuïtief webformulier
-- ✅ **Validatie**: Automatische controle van datums en bedragen
-- ✅ **Excel integratie**: Automatische opslag in Excel-bestand (`records.xlsx`)
-- ✅ **Recente transacties**: Overzicht van de laatste transacties in real-time
-- ✅ **Saldo berekening**: Automatische berekening van het totale kassaldo
 - ✅ **Backup functie**: Maak handmatig of automatisch backups
 - ✅ **Logging**: Uitgebreide logging van alle acties
 - ✅ **Tags**: Categoriseer transacties met tags
@@ -29,7 +24,7 @@ Deze web applicatie is een modernisering van de originele Tkinter desktop applic
 
 Zorg dat je de volgende bestanden hebt:
 ```
-kasboek_debutade/code/
+bankrekening_debutade/code/
 ├── webapp.py
 ├── requirements.txt
 ├── templates/
@@ -78,7 +73,7 @@ python webapp.py
 #### Optie 2: Gebruik aangepast configuratiepad
 
 ```powershell
-$env:KASBOEK_CONFIG="C:\pad\naar\jouw\config.json"
+$env:BANKREKENING_CONFIG="C:\pad\naar\jouw\config.json"
 python webapp.py
 ```
 
@@ -97,7 +92,7 @@ De applicatie start op: **http://127.0.0.1:5000**
    - **Mutatiesoort**: Standaard "Kas"
    - **Tag**: Optioneel - categoriseer de transactie
 3. Klik op **Opslaan**
-4. De transactie wordt toegevoegd en het kassaldo wordt bijgewerkt
+4. De transactie wordt toegevoegd en het banksaldo wordt bijgewerkt
 
 ### Recente transacties bekijken
 
@@ -154,6 +149,13 @@ Het Excel bestand heeft de volgende kolommen:
 11. (leeg)
 12. Tag
 
+Vereiste tabs (sheets):
+- Bankrekening
+- Spaarrekening 1
+- Spaarrekening 2
+
+Alle drie de tabs moeten exact bovenstaande kolomheaders bevatten (in dezelfde volgorde en schrijfwijze).
+
 ## 🔐 Beveiliging
 
 **Let op**: Deze applicatie is bedoeld voor lokaal gebruik. Voor productiegebruik:
@@ -166,11 +168,20 @@ Het Excel bestand heeft de volgende kolommen:
 
 ### Fout: "Configuratiebestand niet gevonden"
 - Controleer of `config.json` bestaat op de opgegeven locatie
-- Gebruik de omgevingsvariabele `KASBOEK_CONFIG` om het pad op te geven
+- Gebruik de omgevingsvariabele `BANKREKENING_CONFIG` om het pad op te geven
 
 ### Fout: "Excel-bestand niet gevonden"
 - Zorg dat het Excel bestand bestaat op het opgegeven pad
 - Of laat de applicatie een nieuw bestand aanmaken door een transactie toe te voegen
+
+### Fout: "Excel bestand voldoet niet aan het vereiste formaat"
+- Het bestand moet exact 3 tabs bevatten: Bankrekening, Spaarrekening 1, Spaarrekening 2
+- Elke tab moet de exacte kolomheaders hebben: "Datum; Naam / Omschrijving; Rekening; Tegenrekening; Code; Af Bij; Bedrag (EUR); Mutatiesoort; Mededelingen; Saldo na mutatie; ; Tag"
+- Pas de namen en headers aan in jouw Excel of kies een ander bestand
+
+### Instellen van Sheet-naam
+- De sheet-naam kan alleen één van de drie vereiste tab-namen zijn
+- Bij een andere naam geeft de applicatie een duidelijke foutmelding
 
 ### Applicatie start niet
 - Controleer of alle dependencies zijn geïnstalleerd: `pip install -r requirements.txt`
@@ -182,7 +193,7 @@ Het Excel bestand heeft de volgende kolommen:
 
 ## 📝 Logging
 
-Alle acties worden gelogd in: `{log_directory}/kasboek_webapp_log.txt`
+Alle acties worden gelogd in: `{log_directory}/bankrekening_webapp_log.txt`
 
 Log entries bevatten:
 - Timestamp
@@ -219,4 +230,4 @@ Eric G.
 
 **Versie**: 2.0 (Web App)  
 **Datum**: 2026-01-03  
-**Gebaseerd op**: kasboek_debutade.py v1.0
+**Gebaseerd op**: bankrekening_debutade.py v1.0
