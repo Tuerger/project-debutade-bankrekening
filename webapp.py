@@ -30,7 +30,13 @@ import locale
 import getpass
 import sys
 
-from tag_recommender import TagRecommender
+try:
+    from tag_recommender import TagRecommender
+except ModuleNotFoundError:
+    import sys as _sys
+    import os as _os
+    _sys.path.append(_os.path.dirname(_os.path.abspath(__file__)))
+    from tag_recommender import TagRecommender
 
 # Fix encoding voor Windows console
 if sys.platform == 'win32':
@@ -195,6 +201,37 @@ TRAINING_FILE_PATH = os.path.join(SCRIPT_DIR, "static", "category_test_set.xlsx"
 
 tag_recommender = TagRecommender(TRAINING_FILE_PATH, allowed_tags=TAGS)
 tag_recommender.load()
+
+# Fallback: bepaal tag op basis van meest gebruikte tag voor dezelfde tegenrekening
+def suggest_tag_by_tegenrekening(tegenrekening: str) -> str | None:
+    wb = None
+    try:
+        tegen = str(tegenrekening or "").strip().upper()
+        if not tegen or not os.path.exists(EXCEL_FILE_PATH):
+            return None
+
+        wb = load_workbook(EXCEL_FILE_PATH, read_only=True, data_only=True)
+        tag_counts: dict[str, int] = {}
+        for sheet_name in REQUIRED_SHEETS:
+            if sheet_name not in wb.sheetnames:
+                continue
+            sheet = wb[sheet_name]
+            for row in sheet.iter_rows(min_row=2, values_only=True):
+                row_tegen = str((row[3] if len(row) > 3 else "") or "").strip().upper()
+                tag_val = str((row[11] if len(row) > 11 else "") or "").strip()
+                if row_tegen and tag_val and row_tegen == tegen:
+                    tag_counts[tag_val] = tag_counts.get(tag_val, 0) + 1
+
+        if not tag_counts:
+            return None
+        # Kies de tag met de hoogste frequentie
+        return max(tag_counts.items(), key=lambda kv: kv[1])[0]
+    except Exception as e:  # noqa: BLE001
+        logging.error(f"Fout bij fallback suggestie op basis van tegenrekening: {str(e)}")
+        return None
+    finally:
+        if wb:
+            wb.close()
 
 # Valideer alle bestandspaden bij startup
 def validate_config():
@@ -532,7 +569,12 @@ def recommend_tag():
 
         suggestions = tag_recommender.recommend(transaction, top_k=3) if tag_recommender else []
         if not suggestions:
-            return jsonify({'success': False, 'message': 'Geen suggesties beschikbaar op basis van trainingsset.'}), 404
+            # Fallback: probeer op basis van tegenrekening
+            fallback_tag = suggest_tag_by_tegenrekening(transaction.get('tegenrekening'))
+            if fallback_tag:
+                suggestions = [{'tag': fallback_tag, 'score': 1.0}]
+            else:
+                return jsonify({'success': False, 'message': 'Geen suggesties beschikbaar op basis van trainingsset of tegenrekening.'}), 404
 
         return jsonify({'success': True, 'top_tag': suggestions[0]['tag'], 'suggestions': suggestions})
     except Exception as e:  # noqa: BLE001
