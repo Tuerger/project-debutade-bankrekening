@@ -1,5 +1,5 @@
-# Bankrekening Debutade - Web Applicatie
 
+# Bankrekening Debutade - Web Applicatie
 Een moderne web-gebaseerde applicatie voor het beheren van bankrekeningtransacties van Debutade.
 
 ## 📋 Overzicht
@@ -8,9 +8,10 @@ Deze web applicatie is een modernisering van de originele Tkinter desktop applic
 
 ## ✨ Functionaliteiten
 
+- ✅ **AI Tag Recommender**: Automatische tag-suggesties op basis van trainingsdata
 - ✅ **Backup functie**: Maak handmatig of automatisch backups
 - ✅ **Logging**: Uitgebreide logging van alle acties
-- ✅ **Tags**: Categoriseer transacties met tags
+- ✅ **Tags**: Voeg tags (categorieen) toe aan transacties
 - ✅ **Responsive design**: Werkt op desktop, tablet en mobiel
 
 ## 🚀 Installatie
@@ -26,13 +27,15 @@ Zorg dat je de volgende bestanden hebt:
 ```
 bankrekening_debutade/code/
 ├── webapp.py
+├── tag_recommender.py     # AI module voor tag suggesties
 ├── requirements.txt
 ├── templates/
 │   ├── base.html
 │   ├── index.html
 │   └── settings.html
 └── static/
-    └── style.css
+    ├── style.css
+    └── category_test_set.xlsx  # Trainingsdata (niet in git)
 ```
 
 ### Stap 2: Installeer dependencies
@@ -94,6 +97,18 @@ De applicatie start op: **http://127.0.0.1:5000**
 3. Klik op **Opslaan**
 4. De transactie wordt toegevoegd en het banksaldo wordt bijgewerkt
 
+### AI Tag Suggesties gebruiken
+
+1. Scroll naar "Transacties zonder Tag" op de hoofdpagina
+2. Klik op **AI suggestie** naast een transactie
+3. Het systeem haalt de top 3 tag-suggesties op:
+   - De beste suggestie wordt automatisch ingevuld
+   - Alle suggesties worden getoond met hun scores
+4. Klik op een suggestie-chip om een andere te kiezen
+5. Klik op **Opslaan** om de tag op te slaan
+
+**Let op**: De AI module werkt alleen als `static/category_test_set.xlsx` bestaat en trainingsdata bevat. Zie [README_AI_MODULE.md](README_AI_MODULE.md) voor meer details.
+
 ### Recente transacties bekijken
 
 De rechterkolom toont automatisch de 10 meest recente transacties. Deze lijst wordt elke 30 seconden automatisch ververst.
@@ -112,13 +127,15 @@ Klik op **Instellingen** in de navigatiebalk om de huidige configuratie te bekij
 ```
 code/
 ├── webapp.py              # Hoofdapplicatie (Flask)
+├── tag_recommender.py     # AI module voor tag suggesties
 ├── requirements.txt       # Python dependencies
 ├── templates/             # HTML templates
 │   ├── base.html         # Basis template
 │   ├── index.html        # Hoofdpagina
 │   └── settings.html     # Instellingen pagina
 └── static/               # Statische bestanden
-    └── style.css         # Custom CSS styling
+    ├── style.css         # Custom CSS styling
+    └── category_test_set.xlsx  # Trainingsdata (niet in git)
 ```
 
 ## 🔧 Configuratie opties
@@ -191,6 +208,12 @@ Alle drie de tabs moeten exact bovenstaande kolomheaders bevatten (in dezelfde v
 - Dit is normaal op systemen zonder Nederlandse locale
 - De applicatie blijft gewoon werken
 
+### AI suggesties werken niet
+- Controleer of `static/category_test_set.xlsx` bestaat
+- Het bestand moet een "Tag" kolom bevatten
+- Er moeten minimaal 10-20 trainingsvoorbeelden per tag zijn voor goede resultaten
+- Zie [README_AI_MODULE.md](README_AI_MODULE.md) voor gedetailleerde troubleshooting
+
 ## 📝 Logging
 
 Alle acties worden gelogd in: `{log_directory}/bankrekening_webapp_log.txt`
@@ -217,6 +240,7 @@ Voor vragen of problemen:
 1. Controleer de logbestanden in `{log_directory}`
 2. Controleer de browserconsole (F12) voor JavaScript fouten
 3. Zorg dat alle paden in `config.json` correct zijn
+4. Voor AI module problemen, zie [README_AI_MODULE.md](README_AI_MODULE.md)
 
 ## 📄 Licentie
 
@@ -228,6 +252,11 @@ Eric G.
 
 ---
 
-**Versie**: 2.0 (Web App)  
-**Datum**: 2026-01-03  
+**Versie**: 2.1 (Web App + AI Module)  
+**Datum**: 2026-01-07  
 **Gebaseerd op**: bankrekening_debutade.py v1.0
+
+## 📚 Aanvullende Documentatie
+
+- [README_AI_MODULE.md](README_AI_MODULE.md) - Uitgebreide documentatie over de AI tag recommender
+- [CHANGES_AI_MODULE.md](CHANGES_AI_MODULE.md) - Overzicht van wijzigingen voor de AI module
