@@ -197,11 +197,11 @@
         button {
             background-color: #27ae60;
             color: white;
-            padding: 8px 16px;
+            padding: 6px 12px;
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 13px;
+            font-size: 12px;
             font-weight: bold;
             transition: background-color 0.3s;
         }
@@ -212,6 +212,25 @@
         
         button:active {
             transform: scale(0.98);
+        }
+
+        .btn-secondary {
+            background-color: #7f8c8d;
+            color: white;
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+            display: block;
+            width: 100%;
+            margin-bottom: 8px;
+        }
+
+        .btn-secondary:hover {
+            background-color: #707b7c;
         }
         
         .transactions-section {
@@ -445,6 +464,33 @@
             border-radius: 12px;
             font-size: 12px;
         }
+
+        .suggestion-box {
+            margin-top: 6px;
+            font-size: 12px;
+            color: #2c3e50;
+        }
+
+        .suggestion-chip {
+            display: inline-block;
+            background-color: #edf2ff;
+            color: #1f2d3d;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-right: 6px;
+            margin-bottom: 4px;
+            cursor: pointer;
+            border: 1px solid #d6e4ff;
+        }
+
+        .suggestion-chip:hover {
+            background-color: #d6e4ff;
+        }
+
+        .suggestion-error {
+            color: #c0392b;
+        }
         
         @media (max-width: 768px) {
             .history-controls {
@@ -586,9 +632,13 @@
                                     {% endfor %}
                                 </div>
                             </div>
+                            <div class="suggestion-box" id="suggestions-{{ t.sheet_name }}-{{ t.row_index }}"></div>
                         </td>
                         <td>
-                            <button class="btn-primary" data-sheet="{{ t.sheet_name }}" data-row="{{ t.row_index }}" onclick="updateTagFromButton(this)">Opslaan</button>
+                            <div style="display: flex; flex-direction: column; gap: 6px;">
+                                <button class="btn-secondary" data-sheet="{{ t.sheet_name }}" data-row="{{ t.row_index }}" onclick="requestSuggestion(this)">AI suggestie</button>
+                                <button class="btn-primary" data-sheet="{{ t.sheet_name }}" data-row="{{ t.row_index }}" onclick="updateTagFromButton(this)">Opslaan</button>
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}
@@ -748,6 +798,66 @@
             if (input) {
                 input.value = tag;
             }
+        }
+
+        function useSuggestedTag(element) {
+            const tag = element.getAttribute('data-tag');
+            const sheet = element.getAttribute('data-sheet');
+            const row = element.getAttribute('data-row');
+            if (tag && sheet && row) {
+                selectTag(sheet, row, tag);
+            }
+        }
+
+        function renderSuggestions(sheetName, rowIndex, suggestions) {
+            const box = document.getElementById(`suggestions-${sheetName}-${rowIndex}`);
+            if (!box) return;
+            if (!suggestions || suggestions.length === 0) {
+                box.className = 'suggestion-box suggestion-error';
+                box.textContent = 'Geen suggesties beschikbaar.';
+                return;
+            }
+
+            box.className = 'suggestion-box';
+            const chips = suggestions.map(s => {
+                return `<span class="suggestion-chip" data-sheet="${sheetName}" data-row="${rowIndex}" data-tag="${s.tag}" onclick="useSuggestedTag(this)">${s.tag} (${s.score})</span>`;
+            });
+            box.innerHTML = `Suggesties: ${chips.join(' ')}`;
+        }
+
+        function requestSuggestion(button) {
+            const sheet = button.getAttribute('data-sheet');
+            const row = button.getAttribute('data-row');
+            const box = document.getElementById(`suggestions-${sheet}-${row}`);
+            if (box) {
+                box.className = 'suggestion-box';
+                box.textContent = 'Suggestie ophalen...';
+            }
+
+            fetch('/recommend_tag', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sheet_name: sheet, row_index: row })
+            })
+            .then(res => res.json().then(body => ({ status: res.status, body })))
+            .then(({ status, body }) => {
+                if (status === 200 && body.success) {
+                    selectTag(sheet, row, body.top_tag);
+                    renderSuggestions(sheet, row, body.suggestions);
+                } else {
+                    if (box) {
+                        box.className = 'suggestion-box suggestion-error';
+                        box.textContent = body.message || 'Geen suggestie gevonden';
+                    }
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                if (box) {
+                    box.className = 'suggestion-box suggestion-error';
+                    box.textContent = 'Fout bij ophalen suggestie';
+                }
+            });
         }
 
         function updateTagFromButton(button) {

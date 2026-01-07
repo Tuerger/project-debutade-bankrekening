@@ -30,6 +30,8 @@ import locale
 import getpass
 import sys
 
+from tag_recommender import TagRecommender
+
 # Fix encoding voor Windows console
 if sys.platform == 'win32':
     try:
@@ -189,6 +191,10 @@ EXCEL_SHEET_NAME = config["excel_sheet_name"]
 TAGS = config["tags"]
 LOG_LEVEL = config["log_level"]
 REQUIRED_SHEETS = config.get("required_sheets", REQUIRED_SHEETS)
+TRAINING_FILE_PATH = os.path.join(SCRIPT_DIR, "static", "category_test_set.xlsx")
+
+tag_recommender = TagRecommender(TRAINING_FILE_PATH, allowed_tags=TAGS)
+tag_recommender.load()
 
 # Valideer alle bestandspaden bij startup
 def validate_config():
@@ -419,6 +425,41 @@ def get_all_transactions_all_sheets():
         logging.error(f"Fout bij ophalen alle transacties (alle tabs): {str(e)}")
         return []
 
+
+def get_transaction_from_sheet(sheet_name, row_index):
+    """Lees een enkele rij uit de opgegeven sheet voor AI-suggesties."""
+    wb = None
+    try:
+        if not os.path.exists(EXCEL_FILE_PATH):
+            return None, "Excel bestand niet gevonden"
+        wb = load_workbook(EXCEL_FILE_PATH, read_only=True, data_only=True)
+        if sheet_name not in wb.sheetnames:
+            return None, "Sheet niet gevonden in Excel bestand"
+
+        sheet = wb[sheet_name]
+        row = next(sheet.iter_rows(min_row=row_index, max_row=row_index, values_only=True), None)
+        if not row:
+            return None, "Rij niet gevonden in sheet"
+
+        transaction = {
+            'datum': row[0] if len(row) > 0 else '',
+            'omschrijving': row[1] if len(row) > 1 else '',
+            'mededelingen': (row[8] if len(row) > 8 else None) or (row[1] if len(row) > 1 else ''),
+            'rekening': row[2] if len(row) > 2 else '',
+            'tegenrekening': row[3] if len(row) > 3 else '',
+            'code': row[4] if len(row) > 4 else '',
+            'af_bij': row[5] if len(row) > 5 else '',
+            'bedrag': row[6] if len(row) > 6 else '',
+            'mutatiesoort': row[7] if len(row) > 7 else '',
+        }
+        return transaction, None
+    except Exception as e:  # noqa: BLE001
+        logging.error(f"Fout bij lezen van transactie voor AI-suggestie: {str(e)}")
+        return None, f"Fout bij lezen van transactie: {str(e)}"
+    finally:
+        if wb:
+            wb.close()
+
 def get_sheet_stats():
     """Geef per vereiste tab het aantal rijen en aantal ongetagde rijen terug."""
     stats = []
@@ -467,6 +508,37 @@ def index():
                          today=today,
                          current_date=current_date_display,
                          current_user=current_user)
+
+
+@app.route('/recommend_tag', methods=['POST'])
+def recommend_tag():
+    """Geef een tag-suggestie op basis van de trainingsset."""
+    try:
+        if not EXCEL_FILE_PATH or not os.path.exists(EXCEL_FILE_PATH):
+            return jsonify({'success': False, 'message': 'Excel bestand niet beschikbaar'}), 400
+
+        data = request.get_json() or {}
+        sheet_name = str(data.get('sheet_name', '')).strip()
+        row_index = int(str(data.get('row_index', '0')).strip() or '0')
+
+        if sheet_name == '' or sheet_name not in REQUIRED_SHEETS:
+            return jsonify({'success': False, 'message': 'Ongeldige sheet-naam'}), 400
+        if row_index < 2:
+            return jsonify({'success': False, 'message': 'Ongeldige rij-index'}), 400
+
+        transaction, error_message = get_transaction_from_sheet(sheet_name, row_index)
+        if error_message:
+            return jsonify({'success': False, 'message': error_message}), 400
+
+        suggestions = tag_recommender.recommend(transaction, top_k=3) if tag_recommender else []
+        if not suggestions:
+            return jsonify({'success': False, 'message': 'Geen suggesties beschikbaar op basis van trainingsset.'}), 404
+
+        return jsonify({'success': True, 'top_tag': suggestions[0]['tag'], 'suggestions': suggestions})
+    except Exception as e:  # noqa: BLE001
+        logging.error(f"Fout bij genereren tag-suggestie: {str(e)}")
+        return jsonify({'success': False, 'message': f'Fout: {str(e)}'}), 500
+
 
 @app.route('/update_tag', methods=['POST'])
 def update_tag():

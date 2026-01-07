@@ -1,0 +1,8 @@
+# Persoonlijke trainingsdata - NIET committen
+static/category_test_set.xlsx
+static/~$category_test_set.xlsx
+
+# Virtuele omgevingen en cache
+.venv/
+__pycache__/
+*.pyc
