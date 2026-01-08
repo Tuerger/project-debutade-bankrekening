@@ -1178,4 +1178,4 @@ if __name__ == '__main__':
     # Start de Flask applicatie
     # Debug=False voor productie, True voor ontwikkeling
     # host='0.0.0.0' maakt de app toegankelijk van alle apparaten op het netwerk
-    app.run(debug=False, host='0.0.0.0', port=5000)
+    app.run(debug=False, host='0.0.0.0', port=5001)

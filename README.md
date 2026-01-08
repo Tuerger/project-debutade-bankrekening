@@ -80,13 +80,13 @@ $env:BANKREKENING_CONFIG="C:\pad\naar\jouw\config.json"
 python webapp.py
 ```
 
-De applicatie start op: **http://127.0.0.1:5000**
+De applicatie start op: **http://127.0.0.1:5001**
 
 ## 💻 Gebruik
 
 ### Transactie toevoegen
 
-1. Open je browser en ga naar `http://127.0.0.1:5000`
+1. Open je browser en ga naar `http://127.0.0.1:5001`
 2. Vul het formulier in:
    - **Datum**: Selecteer de transactiedatum
    - **Naam/Omschrijving**: Beschrijving van de transactie (verplicht)
@@ -202,7 +202,7 @@ Alle drie de tabs moeten exact bovenstaande kolomheaders bevatten (in dezelfde v
 
 ### Applicatie start niet
 - Controleer of alle dependencies zijn geïnstalleerd: `pip install -r requirements.txt`
-- Controleer of poort 5000 niet al in gebruik is
+- Controleer of poort 5001 niet al in gebruik is
 
 ### Locale waarschuwing
 - Dit is normaal op systemen zonder Nederlandse locale

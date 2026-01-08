@@ -70,7 +70,7 @@ def main():
             sys.exit(1)
         
         # Wacht tot server beschikbaar is
-        url = "http://127.0.0.1:5000"
+        url = "http://127.0.0.1:5001"
         if check_server_ready(url):
             print(f">> Server draait op {url}")
             print(">> Opening browser...")
