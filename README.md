@@ -18,7 +18,7 @@ Deze web applicatie is een modernisering van de originele Tkinter desktop applic
 
 ### Vereisten
 
-- Python 3.8 of hoger
+- **Python 3.12** of hoger (Python 3.13 heeft compatibiliteitsproblemen met scikit-learn)
 - pip (Python package manager)
 
 ### Stap 1: Clone of download de bestanden
@@ -38,15 +38,27 @@ bankrekening_debutade/code/
     └── category_test_set.xlsx  # Trainingsdata (niet in git)
 ```
 
-### Stap 2: Installeer dependencies
-
-Open een terminal/PowerShell in de code directory en voer uit:
+### Stap 2: Maak een Python 3.12 virtual environment
 
 ```powershell
+# Maak venv aan (voor Python 3.12)
+py -3.12 -m venv .venv312
+
+# Activeer venv (Windows)
+.\.venv312\Scripts\Activate.ps1
+
+# Of (Mac/Linux)
+source .venv312/bin/activate
+```
+
+### Stap 3: Installeer dependencies
+
+```powershell
+python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### Stap 3: Configuratie
+### Stap 4: Configuratie
 
 Maak een `config.json` bestand aan met de volgende inhoud (pas de paden aan naar jouw situatie):
 
@@ -65,7 +77,7 @@ Maak een `config.json` bestand aan met de volgende inhoud (pas de paden aan naar
 
 **Let op**: Zorg dat de opgegeven directories bestaan of dat de applicatie rechten heeft om ze aan te maken.
 
-### Stap 4: Start de applicatie
+### Stap 5: Start de applicatie
 
 #### Optie 1: Gebruik standaard configuratiepad
 

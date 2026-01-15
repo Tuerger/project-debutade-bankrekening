@@ -2,7 +2,21 @@
 
 ## Overzicht
 
-Dit project bevat nu een AI-module die automatisch tag-suggesties kan doen voor transacties op basis van een trainingsset. De module gebruikt een eenvoudige maar effectieve bag-of-words benadering met TF-IDF weging.
+Dit project bevat een AI-module die automatisch tag-suggesties kan doen voor transacties op basis van een trainingsset. De module gebruikt een **Scikit-learn LogisticRegression** model met **TF-IDF vectorizer** (1-2 gram features).
+
+## Model Architecture
+
+- **Vectorizer**: `TfidfVectorizer(ngram_range=(1, 2))`
+  - Extraheert unigrams en bigrams uit transactietekst
+  - Voegt bedrag toe als feature: `AMT_<afgerond bedrag>`
+  
+- **Classifier**: `LogisticRegression(max_iter=1000)`
+  - Multi-class probabilistische classifier
+  - Produceert kalibreerde waarschijnlijkheden voor alle tags
+  
+- **Fallback**: Heuristische TF-IDF + cosine similarity
+  - Gebruikt automatisch indien < 2 trainingsklassen beschikbaar
+  - Zorgt voor graceful degradation
 
 ## Bestanden
 
@@ -39,27 +53,29 @@ Datum | Naam / Omschrijving | Rekening | ... | Tag
 ## Hoe werkt het?
 
 ### 1. Training
-- Bij het starten laadt `tag_recommender` het trainingsbestand
-- Het tokenizeert alle tekstvelden (splits op woorden/cijfers)
-- Voor elke tag bouwt het een woordfrequentie-profiel op
-- IDF (Inverse Document Frequency) wordt berekend om veelvoorkomende woorden te devalueren
+- Bij het starten laadt `tag_recommender` het trainingsbestand (`category_test_set.xlsx`)
+- Optioneel laadt het ook reeds getagde werkdata (voor incrementeel leren)
+- TF-IDF vectorizer converteert transactieteksten naar feature vectors
+- LogisticRegression model wordt getraind op label-vectorparen
+- Bij < 2 trainingsklassen: fallback naar heuristische TF-IDF
 
 ### 2. Suggestie genereren
 Wanneer een gebruiker op "AI suggestie" klikt:
 1. De transactie-gegevens worden naar `/recommend_tag` gestuurd
 2. De server haalt de volledige rij op uit het Excel bestand
-3. `TagRecommender.recommend()` berekent een score voor elke mogelijke tag:
-   - Score = Σ (TF in tag) × (TF in transactie) × IDF
-   - TF = Term Frequency (hoe vaak komt een woord voor)
-   - IDF = log(1 + totaal_documenten / (1 + documenten_met_woord))
-4. De top 3 tags met hoogste scores worden teruggegeven
+3. `TagRecommender.recommend()` verwerkt de tekst:
+   - Combineert relevant velden (mededelingen, naam, rekening, etc.)
+   - Voegt bedrag toe als token: `AMT_<afgerond>`
+   - Voert text door TF-IDF vectorizer
+4. LogisticRegression geeft `predict_proba()` terug voor alle klassen
+5. De top 3 tags met hoogste waarschijnlijkheid worden geretourneerd
 
 ### 3. Gebruikersinterface
-- In de "Transacties zonder Tag" tabel verschijnt een "AI suggestie" knop
+- In de transactietabel verschijnt een "AI suggestie" knop
 - Klik op de knop om suggesties op te halen
 - De top suggestie wordt automatisch in het invoerveld geplaatst
-- Alle 3 de suggesties worden getoond als klikbare chips met hun scores
-- Klik op een chip om een andere suggestie te kiezen
+- Alle 3 de suggesties worden getoond met hun scores
+- Klik op een suggestie om deze te selecteren
 - Klik "Opslaan" om de gekozen tag op te slaan
 
 ## Configuratie
@@ -129,21 +145,21 @@ Vraag tag-suggesties op voor een specifieke transactie.
 - **Geheugen**: Minimaal (vocabulaire wordt in-memory gehouden)
 - **Schaalbaarheid**: Geschikt voor duizenden trainingsvoorbeelden
 
-## Beperkingen
+## Beperkingen & Known Issues
 
-1. **Alleen tekstuele kenmerken**: Bedragen, datums, en rekening-types worden niet gewogen
-2. **Geen context**: Eerdere transacties worden niet meegenomen
-3. **Simpel model**: Geen deep learning, alleen statistiek
-4. **Nederlandse taal**: Tokenization is geoptimaliseerd voor Latijnse karakters
+1. **Tekstueel dominant**: Bedragen, datums, rekening-types hebben minimale impact op voorspelling
+2. **Trainingsdata afhankelijk**: Kwaliteit verbetert met meer diverse trainingsvoorbeelden
+3. **Python 3.13 incompatibiliteit**: Scikit-learn 1.4.2 ondersteunt nog geen Python 3.13 wheels; gebruik Python 3.12
+4. **Kleine datasets**: Met < 2 trainingsklassen valt model terug op heuristics
 
 ## Toekomstige verbeteringen
 
 Mogelijke uitbreidingen:
 - [ ] Leer van feedback (welke suggesties worden geaccepteerd?)
-- [ ] Gebruik numerieke features (bedrag, datum, rekening-patroon)
-- [ ] N-gram ondersteuning (woordcombinaties)
+- [ ] Custom amount thresholds per tag (bijv. jeugd contributie ≈ €50)
+- [ ] N-gram feature weighting (gewicht geven aan bepaalde woordcombinaties)
+- [ ] Model versioning & export voor analyse
 - [ ] Fuzzy matching voor typfouten
-- [ ] Export van model-statistieken voor analyse
 
 ## Troubleshooting
 

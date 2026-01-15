@@ -232,6 +232,24 @@
         .btn-secondary:hover {
             background-color: #707b7c;
         }
+
+        .btn-delete {
+            background-color: #e74c3c;
+            color: white;
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+            display: block;
+            width: 100%;
+        }
+
+        .btn-delete:hover {
+            background-color: #c0392b;
+        }
         
         .transactions-section {
             margin-top: 40px;
@@ -601,6 +619,10 @@
         <div class="transactions-section">
             <h2>Transacties zonder Tag (alle tabbladen)</h2>
             {% if untagged_transactions %}
+            <div style="margin-bottom: 15px;">
+                <button class="btn-primary" onclick="applyAISuggestionsToAll()" style="font-size: 14px; padding: 10px 20px;">🤖 AI Suggestie voor alle lege tags</button>
+                <span id="bulk-status" style="margin-left: 15px; font-style: italic; color: #7f8c8d;"></span>
+            </div>
             <table>
                 <thead>
                     <tr>
@@ -636,8 +658,8 @@
                         </td>
                         <td>
                             <div style="display: flex; flex-direction: column; gap: 6px;">
-                                <button class="btn-secondary" data-sheet="{{ t.sheet_name }}" data-row="{{ t.row_index }}" onclick="requestSuggestion(this)">AI suggestie</button>
                                 <button class="btn-primary" data-sheet="{{ t.sheet_name }}" data-row="{{ t.row_index }}" onclick="updateTagFromButton(this)">Opslaan</button>
+                                <button class="btn-delete" data-sheet="{{ t.sheet_name }}" data-row="{{ t.row_index }}" onclick="clearTag(this)">Wissen</button>
                             </div>
                         </td>
                     </tr>
@@ -825,37 +847,62 @@
             box.innerHTML = `Suggesties: ${chips.join(' ')}`;
         }
 
-        function requestSuggestion(button) {
+        function clearTag(button) {
             const sheet = button.getAttribute('data-sheet');
             const row = button.getAttribute('data-row');
+            const input = document.getElementById(`tagInput-${sheet}-${row}`);
             const box = document.getElementById(`suggestions-${sheet}-${row}`);
+            
+            if (input) {
+                input.value = '';
+            }
             if (box) {
                 box.className = 'suggestion-box';
-                box.textContent = 'Suggestie ophalen...';
+                box.innerHTML = '';
+            }
+        }
+
+        function applyAISuggestionsToAll() {
+            const statusEl = document.getElementById('bulk-status');
+            if (statusEl) {
+                statusEl.textContent = 'AI suggesties ophalen...';
+                statusEl.style.color = '#3498db';
             }
 
-            fetch('/recommend_tag', {
+            fetch('/bulk_recommend_tags', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sheet_name: sheet, row_index: row })
+                headers: { 'Content-Type': 'application/json' }
             })
             .then(res => res.json().then(body => ({ status: res.status, body })))
             .then(({ status, body }) => {
                 if (status === 200 && body.success) {
-                    selectTag(sheet, row, body.top_tag);
-                    renderSuggestions(sheet, row, body.suggestions);
+                    const results = body.results || [];
+                    let applied = 0;
+                    
+                    results.forEach(result => {
+                        if (result.success && result.tag) {
+                            selectTag(result.sheet_name, result.row_index, result.tag);
+                            applied++;
+                        }
+                    });
+                    
+                    if (statusEl) {
+                        statusEl.textContent = `✓ ${applied} suggestie(s) toegepast`;
+                        statusEl.style.color = '#27ae60';
+                        setTimeout(() => { statusEl.textContent = ''; }, 5000);
+                    }
                 } else {
-                    if (box) {
-                        box.className = 'suggestion-box suggestion-error';
-                        box.textContent = body.message || 'Geen suggestie gevonden';
+                    if (statusEl) {
+                        statusEl.textContent = '✗ ' + (body.message || 'Fout bij ophalen suggesties');
+                        statusEl.style.color = '#e74c3c';
                     }
                 }
             })
             .catch(err => {
                 console.error(err);
-                if (box) {
-                    box.className = 'suggestion-box suggestion-error';
-                    box.textContent = 'Fout bij ophalen suggestie';
+                if (statusEl) {
+                    statusEl.textContent = '✗ Fout bij ophalen suggesties';
+                    statusEl.style.color = '#e74c3c';
                 }
             });
         }

@@ -199,7 +199,8 @@ LOG_LEVEL = config["log_level"]
 REQUIRED_SHEETS = config.get("required_sheets", REQUIRED_SHEETS)
 TRAINING_FILE_PATH = os.path.join(SCRIPT_DIR, "static", "category_test_set.xlsx")
 
-tag_recommender = TagRecommender(TRAINING_FILE_PATH, allowed_tags=TAGS)
+# Initialiseer TagRecommender met trainingsdata en werkbestand als aanvullende data
+tag_recommender = TagRecommender(TRAINING_FILE_PATH, allowed_tags=TAGS, additional_data_path=EXCEL_FILE_PATH)
 tag_recommender.load()
 
 # Fallback: bepaal tag op basis van meest gebruikte tag voor dezelfde tegenrekening
@@ -579,6 +580,85 @@ def recommend_tag():
         return jsonify({'success': True, 'top_tag': suggestions[0]['tag'], 'suggestions': suggestions})
     except Exception as e:  # noqa: BLE001
         logging.error(f"Fout bij genereren tag-suggestie: {str(e)}")
+        return jsonify({'success': False, 'message': f'Fout: {str(e)}'}), 500
+
+
+@app.route('/bulk_recommend_tags', methods=['POST'])
+def bulk_recommend_tags():
+    """Pas AI suggesties toe op alle transacties zonder tag, behalve "Beginsaldo" transacties."""
+    try:
+        if not EXCEL_FILE_PATH or not os.path.exists(EXCEL_FILE_PATH):
+            return jsonify({'success': False, 'message': 'Excel bestand niet beschikbaar'}), 400
+
+        wb = load_workbook(EXCEL_FILE_PATH, read_only=True, data_only=True)
+        results = []
+        
+        for sheet_name in REQUIRED_SHEETS:
+            if sheet_name not in wb.sheetnames:
+                continue
+                
+            sheet = wb[sheet_name]
+            for row_idx, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
+                if not row or len(row) < 12:
+                    continue
+                
+                # Controleer of tag leeg is (kolom 12, index 11)
+                tag_val = str(row[11] or "").strip()
+                if tag_val:
+                    continue  # Skip rijen die al een tag hebben
+                
+                # Controleer of deze rij "Beginsaldo" bevat in ALLE tekstkolommen
+                # Kolom 1 (index 0) = Naam, Kolom 8 (index 7) = Mutatiesoort, Kolom 9 (index 8) = Mededelingen
+                naam = str(row[0] or "").strip().lower()
+                mutatiesoort = str(row[7] or "").strip().lower() if len(row) > 7 else ""
+                mededelingen = str(row[8] or "").strip().lower() if len(row) > 8 else ""
+                
+                if "beginsaldo" in naam or "beginsaldo" in mutatiesoort or "beginsaldo" in mededelingen:
+                    continue  # Skip beginsaldo transacties
+                
+                # Bouw transaction object
+                transaction = {
+                    'datum': str(row[0] or ""),
+                    'naam': str(row[1] or ""),
+                    'rekening': str(row[2] or ""),
+                    'tegenrekening': str(row[3] or ""),
+                    'code': str(row[4] or ""),
+                    'af_bij': str(row[5] or ""),
+                    'bedrag': str(row[6] or ""),
+                    'mutatiesoort': str(row[7] or ""),
+                    'mededelingen': mededelingen,
+                    'omschrijving': str(row[1] or "")
+                }
+                
+                # Vraag AI suggestie op
+                suggestions = tag_recommender.recommend(transaction, top_k=1) if tag_recommender else []
+                
+                if not suggestions:
+                    # Fallback: probeer op basis van tegenrekening
+                    fallback_tag = suggest_tag_by_tegenrekening(transaction.get('tegenrekening'))
+                    if fallback_tag:
+                        suggestions = [{'tag': fallback_tag, 'score': 1.0}]
+                
+                if suggestions:
+                    results.append({
+                        'success': True,
+                        'sheet_name': sheet_name,
+                        'row_index': row_idx,
+                        'tag': suggestions[0]['tag']
+                    })
+                else:
+                    results.append({
+                        'success': False,
+                        'sheet_name': sheet_name,
+                        'row_index': row_idx,
+                        'message': 'Geen suggestie beschikbaar'
+                    })
+        
+        wb.close()
+        return jsonify({'success': True, 'results': results, 'count': len([r for r in results if r['success']])})
+    
+    except Exception as e:  # noqa: BLE001
+        logging.error(f"Fout bij bulk AI suggesties: {str(e)}")
         return jsonify({'success': False, 'message': f'Fout: {str(e)}'}), 500
 
 

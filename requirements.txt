@@ -10,3 +10,6 @@ openpyxl==3.1.2
 
 # Additional utilities
 python-dateutil==2.8.2
+
+# ML model for tag recommendation
+scikit-learn==1.4.2
